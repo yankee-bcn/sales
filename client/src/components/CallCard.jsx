@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { generateContent } from '../api';
 
-export default function CallCard({ contact, onNext, onPrev }) {
+export default function CallCard({ contact, currentIndex, total, onNext, onPrev, onDotClick }) {
   const [aiContent, setAiContent] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
@@ -18,100 +18,106 @@ export default function CallCard({ contact, onNext, onPrev }) {
       const content = await generateContent(contact);
       setAiContent(content);
     } catch (err) {
-      setAiError(err.response?.data?.error || 'Failed to generate script and objections');
+      setAiError(err.response?.data?.error || 'Generation failed');
     } finally {
       setAiLoading(false);
     }
   }
 
+  const initials = [contact.firstName?.[0], contact.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
+
   return (
-    <div className="w-full max-w-4xl bg-white rounded-2xl shadow-lg overflow-hidden">
+    <div className="w-screen h-screen flex flex-col overflow-hidden bg-white">
 
-      {/* ── Row 1: Identity | Company Info ── */}
-      <div className="grid grid-cols-2 gap-px bg-gray-200">
-        {/* Left: Name / Position / Company */}
-        <div className="bg-white px-8 py-6">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Contact</p>
-          <p className="text-2xl font-bold text-gray-900 leading-tight">{contact.fullName}</p>
-          <p className="text-base text-blue-600 font-medium mt-1">{contact.role}</p>
-          <p className="text-base text-gray-600 mt-1">{contact.company.name}</p>
-          {contact.company.location && (
-            <p className="text-sm text-gray-400 mt-1">{contact.company.location}</p>
-          )}
-          {contact.phone && (
-            <p className="text-sm text-gray-500 mt-3 font-mono">{contact.phone}</p>
-          )}
-        </div>
+      {/* ── Header ── */}
+      <div className="bg-gradient-to-br from-slate-800 to-indigo-900 px-10 py-7 flex-shrink-0">
+        <div className="flex items-center gap-6">
+          {/* Avatar */}
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-400 to-blue-600 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 shadow-lg">
+            {initials}
+          </div>
 
-        {/* Right: Employees / Use case */}
-        <div className="bg-white px-8 py-6">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Company</p>
-          {contact.company.employees && (
-            <div className="mb-3">
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Employees</p>
-              <p className="text-xl font-bold text-gray-900">{contact.company.employees}</p>
+          {/* Identity */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-white text-[28px] font-bold leading-tight tracking-tight">
+              {contact.fullName}
+            </h1>
+            <p className="text-indigo-300 text-base font-medium mt-0.5">
+              {contact.role}
+              {contact.company.name && (
+                <span className="text-slate-400 font-normal"> · {contact.company.name}</span>
+              )}
+            </p>
+            <div className="flex items-center gap-3 mt-2.5 flex-wrap">
+              {contact.phone && (
+                <a
+                  href={`tel:${contact.phone}`}
+                  className="text-slate-300 text-sm font-mono hover:text-white transition-colors"
+                >
+                  {contact.phone}
+                </a>
+              )}
+              {contact.useCase && (
+                <span className="bg-indigo-500/25 text-indigo-200 border border-indigo-400/30 text-xs font-semibold px-3 py-1 rounded-full">
+                  {contact.useCase}
+                </span>
+              )}
             </div>
-          )}
-          {contact.useCase && (
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Use Case</p>
-              <span className="inline-block bg-blue-50 text-blue-700 text-sm font-semibold px-3 py-1.5 rounded-lg">
-                {contact.useCase}
-              </span>
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* ── Row 2: Pain Points ── */}
-      <div className="bg-amber-50 border-y border-amber-100 px-8 py-5">
-        <p className="text-xs font-semibold text-amber-600 uppercase tracking-widest mb-3">Pain Points</p>
-        {contact.painPoints && contact.painPoints.length > 0 ? (
+      {/* ── Pain Points ── */}
+      {contact.painPoints?.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-10 py-3.5 flex-shrink-0">
           <div className="flex flex-wrap gap-2">
             {contact.painPoints.map((point, i) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-2 bg-white border border-amber-200 text-gray-700 text-sm px-3 py-1.5 rounded-lg"
+                className="inline-flex items-center gap-2 bg-black/20 text-white text-sm px-4 py-1.5 rounded-full font-medium backdrop-blur-sm"
               >
-                <span className="w-4 h-4 rounded-full bg-amber-400 text-white text-xs flex items-center justify-center font-bold flex-shrink-0">
-                  {i + 1}
-                </span>
+                <span className="text-amber-200 font-bold text-xs">{i + 1}.</span>
                 {point}
               </span>
             ))}
           </div>
-        ) : (
-          <p className="text-gray-400 text-sm italic">No pain points listed for this contact.</p>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* ── Row 3: Script | Objections ── */}
-      <div className="grid grid-cols-2 gap-px bg-gray-200 min-h-64">
-        {/* Script */}
-        <div className="bg-white px-8 py-6">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Script</p>
-          {aiLoading && <AiSkeleton lines={8} />}
-          {aiError && <AiError error={aiError} onRetry={fetchAiContent} />}
+      {/* ── Body: Script + Objections ── */}
+      <div className="flex-1 grid overflow-hidden" style={{ gridTemplateColumns: '65% 35%' }}>
+
+        {/* Script — 65% */}
+        <div className="bg-white overflow-y-auto px-12 py-8 border-r border-slate-100">
+          {aiLoading && <Skeleton lines={12} />}
+          {aiError && (
+            <div>
+              <p className="text-red-400 text-sm mb-3">{aiError}</p>
+              <button onClick={fetchAiContent} className="text-xs text-indigo-500 hover:underline">
+                Retry
+              </button>
+            </div>
+          )}
           {aiContent && (
-            <pre className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-sans">
+            <p className="text-slate-700 text-[15px] leading-[1.85] whitespace-pre-wrap">
               {aiContent.script}
-            </pre>
+            </p>
           )}
         </div>
 
-        {/* Objections */}
-        <div className="bg-gray-50 px-8 py-6 border-l border-gray-200">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Objections</p>
-          {aiLoading && <AiSkeleton lines={5} />}
-          {aiError && <p className="text-red-400 text-sm">—</p>}
+        {/* Objections — 35% */}
+        <div className="bg-slate-50 overflow-y-auto px-8 py-8">
+          {aiLoading && <Skeleton lines={7} compact />}
           {aiContent && (
-            <ol className="space-y-4">
+            <ol className="space-y-6">
               {aiContent.objection_handling.map((item, i) => (
-                <li key={i} className="text-sm">
-                  <p className="font-semibold text-gray-700">
-                    {i + 1}. "{item.objection}"
+                <li key={i}>
+                  <p className="text-slate-700 text-[13px] font-semibold leading-snug">
+                    "{item.objection}"
                   </p>
-                  <p className="text-gray-500 mt-0.5 leading-relaxed">{item.response}</p>
+                  <p className="text-slate-500 text-[13px] leading-relaxed mt-1">
+                    {item.response}
+                  </p>
                 </li>
               ))}
             </ol>
@@ -119,19 +125,37 @@ export default function CallCard({ contact, onNext, onPrev }) {
         </div>
       </div>
 
-      {/* ── Footer: Prev / Next ── */}
-      <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between">
+      {/* ── Footer ── */}
+      <div className="bg-white border-t border-slate-100 px-10 py-4 flex items-center justify-between flex-shrink-0">
         <button
           onClick={onPrev}
           disabled={!onPrev}
-          className="text-sm text-gray-400 hover:text-gray-700 disabled:opacity-0 transition-colors px-4 py-2"
+          className="text-sm text-slate-400 hover:text-slate-700 disabled:opacity-0 transition-colors px-3 py-1.5 font-medium"
         >
           ← Previous
         </button>
+
+        {/* Dot navigation */}
+        <div className="flex gap-1.5 items-center">
+          {Array.from({ length: total }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => onDotClick(i)}
+              className={`rounded-full transition-all ${
+                i === currentIndex
+                  ? 'w-5 h-2 bg-indigo-600'
+                  : i < currentIndex
+                  ? 'w-2 h-2 bg-indigo-300'
+                  : 'w-2 h-2 bg-slate-200 hover:bg-slate-300'
+              }`}
+            />
+          ))}
+        </div>
+
         <button
           onClick={onNext}
           disabled={!onNext}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold px-8 py-2.5 rounded-lg text-sm transition-colors"
+          className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-semibold px-8 py-2.5 rounded-xl text-sm transition-colors shadow-sm"
         >
           {onNext ? 'Next →' : 'Done'}
         </button>
@@ -140,27 +164,16 @@ export default function CallCard({ contact, onNext, onPrev }) {
   );
 }
 
-function AiSkeleton({ lines }) {
+function Skeleton({ lines, compact }) {
   return (
-    <div className="space-y-2 animate-pulse">
+    <div className={`space-y-${compact ? '2' : '3'} animate-pulse`}>
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
-          className="h-3 bg-gray-200 rounded"
-          style={{ width: `${70 + Math.random() * 30}%` }}
+          className={`${compact ? 'h-2.5' : 'h-3'} bg-slate-100 rounded-full`}
+          style={{ width: `${55 + (i % 4) * 12}%` }}
         />
       ))}
-    </div>
-  );
-}
-
-function AiError({ error, onRetry }) {
-  return (
-    <div>
-      <p className="text-red-400 text-sm mb-2">{error}</p>
-      <button onClick={onRetry} className="text-xs text-blue-500 hover:underline">
-        Retry
-      </button>
     </div>
   );
 }
