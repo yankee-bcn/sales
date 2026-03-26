@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Phone, RefreshCw, AlertCircle, Inbox } from 'lucide-react';
 import { getContacts } from './api';
-import CallQueue from './components/CallQueue';
 import CallCard from './components/CallCard';
 
 export default function App() {
   const [contacts, setContacts] = useState([]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [callStatuses, setCallStatuses] = useState({});
+  const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -21,142 +18,85 @@ export default function App() {
     try {
       const data = await getContacts();
       setContacts(data);
-      setActiveIndex(0);
-      setCallStatuses({});
+      setIndex(0);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load contacts from CRM');
+      setError(err.response?.data?.error || 'Failed to load contacts');
     } finally {
       setLoading(false);
     }
   }
 
-  function handleCallLogged(contactId, outcome) {
-    setCallStatuses((prev) => ({ ...prev, [contactId]: { outcome, timestamp: new Date() } }));
-    // Auto-advance to next uncalled contact
-    const nextIndex = contacts.findIndex((c, i) => i > activeIndex && !callStatuses[c.id]);
-    if (nextIndex !== -1) setActiveIndex(nextIndex);
+  function handleNext() {
+    setIndex((i) => Math.min(i + 1, contacts.length - 1));
   }
 
-  const activeContact = contacts[activeIndex] || null;
-  const total = contacts.length;
-  const done = Object.keys(callStatuses).length;
-  const interested = Object.values(callStatuses).filter((s) => s.outcome === 'connected_interested').length;
+  function handlePrev() {
+    setIndex((i) => Math.max(i - 1, 0));
+  }
+
+  if (loading) return <Screen><Spinner text="Loading contacts..." /></Screen>;
+  if (error) return <Screen><ErrorMsg error={error} onRetry={loadContacts} /></Screen>;
+  if (contacts.length === 0) return <Screen><p className="text-gray-400">No contacts found in your sheet.</p></Screen>;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
-      {/* Header */}
-      <header className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-lg">
-            <Phone size={16} className="text-white" />
-          </div>
-          <div>
-            <h1 className="font-bold text-white leading-none">SDR Call Tool</h1>
-            <p className="text-gray-500 text-xs mt-0.5">Powered by Claude AI</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-6">
-          {total > 0 && (
-            <>
-              <Stat label="In Queue" value={total - done} />
-              <Stat label="Called" value={done} />
-              <Stat label="Interested" value={interested} accent />
-            </>
-          )}
-          <button
-            onClick={loadContacts}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
-          >
-            <RefreshCw size={13} />
-            Refresh
-          </button>
-        </div>
-      </header>
-
-      {/* Body */}
-      <div className="flex flex-1 overflow-hidden">
-        {loading ? (
-          <LoadingScreen />
-        ) : error ? (
-          <ErrorScreen error={error} onRetry={loadContacts} />
-        ) : contacts.length === 0 ? (
-          <EmptyScreen />
-        ) : (
-          <>
-            <CallQueue
-              contacts={contacts}
-              activeIndex={activeIndex}
-              callStatuses={callStatuses}
-              onSelect={setActiveIndex}
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
+      {/* Progress */}
+      <div className="w-full max-w-4xl mb-3 flex items-center justify-between">
+        <span className="text-sm text-gray-500 font-medium">
+          Contact {index + 1} of {contacts.length}
+        </span>
+        <div className="flex gap-1">
+          {contacts.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIndex(i)}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                i === index ? 'bg-blue-600' : i < index ? 'bg-blue-300' : 'bg-gray-300'
+              }`}
             />
-            <main className="flex-1 overflow-y-auto p-6 bg-gray-950">
-              {activeContact ? (
-                <CallCard
-                  key={activeContact.id}
-                  contact={activeContact}
-                  callStatus={callStatuses[activeContact.id]}
-                  onCallLogged={(outcome) => handleCallLogged(activeContact.id, outcome)}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-500">All calls completed for this session.</p>
-                </div>
-              )}
-            </main>
-          </>
-        )}
+          ))}
+        </div>
       </div>
+
+      {/* Card */}
+      <CallCard
+        key={contacts[index].id}
+        contact={contacts[index]}
+        onNext={index < contacts.length - 1 ? handleNext : null}
+        onPrev={index > 0 ? handlePrev : null}
+      />
     </div>
   );
 }
 
-function Stat({ label, value, accent }) {
+function Screen({ children }) {
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      {children}
+    </div>
+  );
+}
+
+function Spinner({ text }) {
   return (
     <div className="text-center">
-      <div className={`text-xl font-bold leading-none ${accent ? 'text-green-400' : 'text-white'}`}>{value}</div>
-      <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+      <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+      <p className="text-gray-500 text-sm">{text}</p>
     </div>
   );
 }
 
-function LoadingScreen() {
+function ErrorMsg({ error, onRetry }) {
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-gray-400">Loading contacts from CRM...</p>
-      </div>
-    </div>
-  );
-}
-
-function ErrorScreen({ error, onRetry }) {
-  return (
-    <div className="flex-1 flex items-center justify-center p-8">
-      <div className="text-center max-w-md">
-        <AlertCircle size={40} className="text-red-400 mx-auto mb-3" />
-        <h2 className="text-white font-semibold mb-2">Failed to load contacts</h2>
-        <p className="text-gray-400 text-sm mb-5">{error}</p>
-        <button
-          onClick={onRetry}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm transition-colors"
-        >
-          Try Again
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function EmptyScreen() {
-  return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center">
-        <Inbox size={40} className="text-gray-600 mx-auto mb-3" />
-        <h2 className="text-white font-semibold mb-2">No contacts in queue</h2>
-        <p className="text-gray-500 text-sm">Your CRM returned no contacts to call.</p>
-      </div>
+    <div className="text-center max-w-md px-4">
+      <p className="text-red-500 font-medium mb-2">Failed to load contacts</p>
+      <p className="text-gray-500 text-sm mb-4">{error}</p>
+      <button
+        onClick={onRetry}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm"
+      >
+        Retry
+      </button>
     </div>
   );
 }

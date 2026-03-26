@@ -8,37 +8,37 @@ async function generateCallContent(contact) {
   const companyName = process.env.YOUR_COMPANY_NAME || 'our company';
   const valueProp = process.env.YOUR_VALUE_PROP || 'help revenue teams perform better';
 
+  const painPointsSummary = contact.painPoints && contact.painPoints.length
+    ? contact.painPoints.join('; ')
+    : 'unknown';
+
   const prompt = `You are an expert B2B sales coach preparing an SDR for a cold call.
 
 CONTACT:
 - Name: ${contact.fullName}
 - Role: ${contact.role}
 - Company: ${contact.company.name}
-- Industry: ${contact.company.industry || 'unknown'}
+- Location: ${contact.company.location || 'unknown'}
 - Employees: ${contact.company.employees || 'unknown'}
-- Description: ${contact.company.description || 'N/A'}
+- Use case: ${contact.useCase || 'unknown'}
+- Known pain points: ${painPointsSummary}
 
 SDR INFO:
 - SDR name: ${sdrName}
 - Selling company: ${companyName}
 - Value proposition: ${valueProp}
 
-BASE SCRIPT TEMPLATE (personalize for this contact):
+BASE SCRIPT TEMPLATE:
 ${getScriptTemplate()}
 
-BASE OBJECTION TEMPLATE (personalize responses for this role/industry):
+BASE OBJECTION TEMPLATE:
 ${getObjectionTemplate()}
 
-Generate a JSON object only (no markdown, no explanation). The JSON must have exactly these keys:
+Generate a JSON object only (no markdown, no explanation):
 {
-  "pain_points": [
-    "Pain point 1 specific to this role/industry (max 15 words)",
-    "Pain point 2 specific to this role/industry (max 15 words)",
-    "Pain point 3 specific to this role/industry (max 15 words)"
-  ],
-  "script": "Full personalized cold call script 150-200 words. Use the SDR name '${sdrName}' directly (not a placeholder). Make it conversational and natural.",
+  "script": "Personalized cold call script 150-200 words. Address the known pain points and use case. Use the SDR name '${sdrName}' directly. Natural and conversational.",
   "objection_handling": [
-    {"objection": "Not interested", "response": "Personalized response for this role/industry..."},
+    {"objection": "Not interested", "response": "Personalized response..."},
     {"objection": "Send me an email", "response": "Personalized response..."},
     {"objection": "We already have a solution", "response": "Personalized response..."},
     {"objection": "No budget right now", "response": "Personalized response..."},
@@ -48,7 +48,7 @@ Generate a JSON object only (no markdown, no explanation). The JSON must have ex
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1500,
+    max_tokens: 1200,
     messages: [{ role: 'user', content: prompt }],
   });
 

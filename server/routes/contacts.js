@@ -1,28 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { fetchContacts } = require('../services/hubspot');
-const { getDemoContacts } = require('../services/demo');
+const { fetchContacts } = require('../services/gsheets');
 
 router.get('/', async (req, res) => {
-  const useDemo = process.env.DEMO_MODE === 'true' || !process.env.HUBSPOT_ACCESS_TOKEN;
-
-  if (useDemo) {
-    if (!process.env.HUBSPOT_ACCESS_TOKEN) {
-      console.warn('HUBSPOT_ACCESS_TOKEN not set — serving demo contacts. Set DEMO_MODE=false and add your token to use live CRM data.');
-    }
-    return res.json(getDemoContacts());
+  if (!process.env.GOOGLE_SHEET_CSV_URL) {
+    return res.status(400).json({
+      error: 'GOOGLE_SHEET_CSV_URL is not set. Publish your Google Sheet to web (File → Share → Publish to web → CSV) and add the URL to .env.',
+    });
   }
 
   try {
-    const limit = parseInt(req.query.limit) || 50;
-    const contacts = await fetchContacts(limit);
+    const contacts = await fetchContacts();
     res.json(contacts);
   } catch (error) {
-    console.error('HubSpot fetch error:', error.message);
-    res.status(500).json({
-      error: 'Failed to fetch contacts from HubSpot',
-      details: error.response?.data?.message || error.message,
-    });
+    console.error('Google Sheets fetch error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch contacts from Google Sheets', details: error.message });
   }
 });
 

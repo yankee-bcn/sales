@@ -11,11 +11,9 @@ router.post('/generate', async (req, res) => {
     return res.status(400).json({ error: 'ANTHROPIC_API_KEY is not configured on the server.' });
   }
 
-  // Serve from cache if available
   const cached = getCachedContent(contact.id);
   if (cached) {
     return res.json({
-      pain_points: JSON.parse(cached.pain_points),
       script: cached.script,
       objection_handling: JSON.parse(cached.objection_handling),
       cached: true,
